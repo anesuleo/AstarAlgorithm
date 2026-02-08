@@ -11,20 +11,20 @@ In Week 1, I focused on establishing the data structures and constraints require
 
 ### Grid Representation
 
-I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell in the grid represents a node in the search space, where a value of `0` indicates a traversable cell and a value of `1` represents an obstacle. This structure allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding.
-
+I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell in the grid represents a node in the search space, where a value of `0` indicates a traversable cell and a value of `1` represents an obstacle. This structure allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding. 
+![Grid](images/Grid.h_w1.png)
 Using a dynamic 2D vector allows the grid size to be configured at runtime and avoids manual memory management, while still providing efficient indexed access required by the algorithm.
 
 ### Position Abstraction
 
 To represent nodes within the grid, I created a `Position` structure containing row and column coordinates. This abstraction is used consistently throughout the project to describe the start node, goal node, neighbouring nodes, and the final path returned by the algorithm. Keeping this structure simple ensures that positions can be passed and compared efficiently during the search process.
-
+![Main test](images/position.h_w1.png)
 ### Boundary Validation
 
 A key requirement of A* is safe neighbour expansion. When exploring adjacent nodes, it is possible to generate positions that lie outside the grid. To handle this, I implemented an `inBounds` function that verifies whether a given position lies within the valid grid limits.
 
 This function acts as a guard during neighbour generation and prevents invalid memory access when evaluating candidate nodes. Centralising this check within the `Grid` class ensures that all future pathfinding logic can rely on consistent boundary validation.
-
+![Main test](images/Grid.cpp_w1.png)
 ### Walkability and Obstacles
 
 In addition to boundary checks, I implemented an `isWalkable` function to determine whether a cell can be traversed. This function combines boundary validation with obstacle checking, allowing the pathfinding algorithm to immediately discard blocked or invalid nodes during expansion.
