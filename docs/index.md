@@ -61,3 +61,6 @@ By the end of Week 1, I had a grid-based environment capable of supporting A* pa
 ### Outcome
 
 By the end of Week 1, I had a working grid representation, a clean project structure, and core helper functions that will make the A* implementation safer and easier in Week 2.
+
+## Week 2
+
