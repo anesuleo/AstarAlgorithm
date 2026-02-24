@@ -50,8 +50,6 @@ Screenshots included in this section show the project structure, grid implementa
 By the end of Week 1, I had a grid-based environment capable of supporting A* pathfinding, including node representation, boundary checks, and obstacle handling. This foundation ensures that the algorithm implementation in Week 2 can focus purely on search logic, cost calculation, and heuristic evaluation without revisiting structural concerns.
 - `isWalkable` checks both bounds and whether a cell is blocked.
 
-#### 5) Initial test in `main.cpp`
-![Main test](images/main_test.png)
 
 - I wrote a small test to confirm that obstacles and bounds checks behave correctly.
 - I have not implemented the A* algorithm yet — Week 1 was only about setting up the foundation.
@@ -62,5 +60,72 @@ By the end of Week 1, I had a grid-based environment capable of supporting A* pa
 
 By the end of Week 1, I had a working grid representation, a clean project structure, and core helper functions that will make the A* implementation safer and easier in Week 2.
 
-## Week 2
+## Week 2 – Implementing the A* Algorithm (Core Search)
+
+In Week 2, I implemented the core A* pathfinding algorithm on a grid with 4-direction movement (up, down, left, right). The main goal this week was to move from a working grid environment to a working shortest-path search that correctly returns a path from `S` to `G` while avoiding obstacles.
+
+### Neighbour Expansion (Search Space)
+
+Before writing the full A* loop, I implemented neighbour generation as a dedicated helper function. From a given `Position`, I generate the 4 candidate neighbours and then filter them using `Grid::isWalkable(...)`. This ensures that the algorithm only expands valid nodes (inside the grid and not blocked) and prevents out-of-bounds access during the search.
+
+This step was important because A* correctness depends on expanding exactly the valid neighbouring states in the search space.
+
+### Heuristic Function (Manhattan Distance)
+
+I added a heuristic function using Manhattan distance:
+
+- `h(n) = |row_n - row_goal| + |col_n - col_goal|`
+
+This heuristic matches the movement rules (no diagonals), so it remains admissible and consistent in this environment. In practice, this means A* is guided toward the goal while still guaranteeing an optimal shortest path on an unweighted 4-direction grid.
+
+### Open Set, Cost Tracking, and Parent Mapping
+
+I implemented the main A* loop using these structures:
+
+- **Open set**: a `priority_queue` ordered by the lowest `f(n) = g(n) + h(n)` so that the most promising node is expanded first.
+- **`gScore`**: stores the best known cost from the start to each explored position.
+- **`cameFrom`**: stores parent pointers so that once the goal is reached, the path can be reconstructed.
+- **Closed set**: prevents re-expanding nodes that have already been processed, reducing duplicate work and improving efficiency.
+
+Each step to a neighbour on the grid is treated as a uniform cost of `1`, which fits the current grid model (unweighted traversal).
+
+### Path Reconstruction and Output
+
+When the goal is reached, I reconstruct the final path by walking backwards through `cameFrom` from the goal to the start, then reversing the result so it is in start-to-goal order. This produces the final `std::vector<Position>` path that the rest of the program can display.
+
+To validate the output, I added:
+
+- A printed path length (`path.size()`)
+- A visual grid overlay where:
+  - `S` = start
+  - `G` = goal
+  - `#` = obstacle
+  - `*` = returned path cells
+
+This made it easy to confirm that the returned path is continuous, avoids obstacles, and reaches the goal.
+
+---
+
+### Screenshots (Week 2)
+
+#### 1) Neighbour generation + filtering
+![Neighbour generation](images/week2_neighbours.png)
+
+#### 2) Manhattan heuristic function
+![Heuristic function](images/week2_heuristic.png)
+
+#### 3) A* main loop (`openSet`, `gScore`, `cameFrom`, `closed`)
+![A* main loop](images/week2_astar_loop.png)
+
+#### 4) Path reconstruction
+![Path reconstruction](images/week2_reconstruct.png)
+
+#### 5) Output (path overlay)
+![A* output](images/week2_output.png)
+
+---
+
+### Week 2 Outcome
+
+By the end of Week 2, I had a working A* implementation that can find and return a shortest path on a grid with obstacles using a Manhattan heuristic. The algorithm now produces both a coordinate path and a visual grid overlay, which will make further testing and future improvements (such as diagonals or weighted cells) easier to validate.
 
