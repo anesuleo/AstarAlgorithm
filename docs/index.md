@@ -62,7 +62,7 @@ By the end of Week 1, I had a working grid representation, a clean project struc
 
 ## Week 2 – Implementing the A* Algorithm (Core Search)
 
-In Week 2, I implemented the core A* pathfinding algorithm on a grid with 4-direction movement (up, down, left, right). The main goal this week was to move from a working grid environment to a working shortest-path search that correctly returns a path from `S` to `G` while avoiding obstacles.
+In Week 2, I implemented the core A* pathfinding algorithm on a grid with 4-direction movement (up, down, left, right). The main goal this week was to move from a working grid environment to a working shortest-path search that correctly returns a path from Start to Goal while avoiding obstacles.
 
 ### Neighbour Expansion (Search Space)
 
@@ -76,7 +76,7 @@ I added a heuristic function using Manhattan distance:
 
 - `h(n) = |row_n - row_goal| + |col_n - col_goal|`
 
-This heuristic matches the movement rules (no diagonals), so it remains admissible and consistent in this environment. In practice, this means A* is guided toward the goal while still guaranteeing an optimal shortest path on an unweighted 4-direction grid.
+This heuristic matches the movement rules (4- directional movement, no diagonals), so it remains admissible and consistent in this environment. In practice, this means A* is guided toward the goal while still guaranteeing an optimal shortest path on an unweighted 4-direction grid.
 
 ### Open Set, Cost Tracking, and Parent Mapping
 
@@ -92,6 +92,23 @@ Each step to a neighbour on the grid is treated as a uniform cost of `1`, which 
 ### Path Reconstruction and Output
 
 When the goal is reached, I reconstruct the final path by walking backwards through `cameFrom` from the goal to the start, then reversing the result so it is in start-to-goal order. This produces the final `std::vector<Position>` path that the rest of the program can display.
+```cpp
+std::vector<Position> Pathfinder::reconstructPath(
+    const std::unordered_map<Position, Position, PositionHash>& cameFrom,
+    Position current) const
+{
+    std::vector<Position> path;
+    path.push_back(current);
+
+    while (cameFrom.count(current)) {
+        current = cameFrom.at(current);
+        path.push_back(current);
+    }
+
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+```
 
 To validate the output, I added:
 
