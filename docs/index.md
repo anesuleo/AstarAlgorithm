@@ -15,7 +15,7 @@ In Week 1, I focused on establishing the data structures and constraints require
 ### Grid Representation
 
 I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell is either `0` (traversable) or `1` (obstacle). This allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding.
-
+![UML Diagram](images/uml_diagram.svg)
 ```cpp
 class Grid {
 private:
