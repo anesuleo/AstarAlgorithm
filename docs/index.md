@@ -1,77 +1,112 @@
 # A* Pathfinding Algorithm
 
 ## Introduction
-This project involves implementing the A* pathfinding algorithm in C++ using a grid-based environment. The goal of the project is to understand how the A* algorithm works in practice and to apply it using clean, modular, and modern C++ code.
 
-The program represents a two-dimensional grid where each cell can either be free or blocked by an obstacle. Given a start position and a goal position, the algorithm searches for the shortest valid path while avoiding obstacles and staying within the grid boundaries. If a path cannot be found, the program will indicate that no valid route exists.
+This project involves implementing the A* pathfinding algorithm in C++ using a grid-based environment. The goal is to understand how A* works in practice and to apply it using clean, modular, and modern C++ code.
+
+The program represents a two-dimensional grid where each cell can either be free or blocked by an obstacle. Given a start position and a goal position, the algorithm searches for the shortest valid path while avoiding obstacles and staying within grid boundaries. If no path exists, the program reports this clearly.
+
+---
 
 ## Week 1 – Grid Representation and Core Data Structures
 
-In Week 1, I focused on establishing the data structures and constraints required for the A* pathfinding algorithm before implementing the algorithm itself. The main goal was to create a grid representation that supports safe neighbour expansion, obstacle handling, and boundary validation, all of which are essential for A* to function correctly.
+In Week 1, I focused on establishing the data structures and constraints required for A* before implementing the algorithm itself. The goal was to create a grid representation that supports safe neighbour expansion, obstacle handling, and boundary validation.
 
 ### Grid Representation
 
-I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell in the grid represents a node in the search space, where a value of `0` indicates a traversable cell and a value of `1` represents an obstacle. This structure allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding. 
+I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell is either `0` (traversable) or `1` (obstacle). This allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding.
 
-![Grid](images/Grid.h_w1.png)
+```cpp
+class Grid {
+private:
+    int rows;
+    int cols;
+    std::vector<std::vector<int>> grid;
+};
+```
 
-Using a dynamic 2D vector allows the grid size to be configured at runtime and avoids manual memory management, while still providing efficient indexed access required by the algorithm.
+Using a dynamic 2D vector allows the grid size to be configured at runtime and avoids manual memory management, while still providing the efficient indexed access A* requires.
+
+![Grid class definition](images/Grid.h_w1.png)
 
 ### Position Abstraction
 
-To represent nodes within the grid, I created a `Position` structure containing row and column coordinates. This abstraction is used consistently throughout the project to describe the start node, goal node, neighbouring nodes, and the final path returned by the algorithm. Keeping this structure simple ensures that positions can be passed and compared efficiently during the search process.
+To represent nodes within the grid, I created a `Position` structure containing row and column coordinates. This is used throughout the project to describe the start, goal, neighbours, and the final path.
 
-![Main test](images/position.h_w1.png)
+```cpp
+struct Position {
+    int row;
+    int col;
+
+    bool operator==(const Position& other) const {
+        return row == other.row && col == other.col;
+    }
+};
+```
+
+The `operator==` overload is essential — it allows the algorithm to compare two positions directly with `==`, for example when checking `if (current == goal)`. Without it the compiler would not know how to compare two `Position` values.
+
+![Position structure](images/position.h_w1.png)
 
 ### Boundary Validation
 
-A key requirement of A* is safe neighbour expansion. When exploring adjacent nodes, it is possible to generate positions that lie outside the grid. To handle this, I implemented an `inBounds` function that verifies whether a given position lies within the valid grid limits.
+When expanding neighbours, it is possible to generate positions outside the grid. The `inBounds` function guards against this:
 
-This function acts as a guard during neighbour generation and prevents invalid memory access when evaluating candidate nodes. Centralising this check within the `Grid` class ensures that all future pathfinding logic can rely on consistent boundary validation.
+```cpp
+bool Grid::inBounds(const Position& pos) const {
+    return pos.row >= 0 && pos.row < rows &&
+           pos.col >= 0 && pos.col < cols;
+}
+```
 
-![Main test](images/Grid.cpp_w1.png)
+Centralising this check within `Grid` means all pathfinding logic can rely on it without duplicating the boundary logic.
 
 ### Walkability and Obstacles
 
-In addition to boundary checks, I implemented an `isWalkable` function to determine whether a cell can be traversed. This function combines boundary validation with obstacle checking, allowing the pathfinding algorithm to immediately discard blocked or invalid nodes during expansion.
+`isWalkable` combines boundary validation with obstacle checking in a single call:
 
-Obstacles are inserted into the grid using a dedicated function, which modifies the underlying grid data while maintaining encapsulation. This setup mirrors how A* treats blocked nodes as non-expandable during the search process.
+```cpp
+bool Grid::isWalkable(const Position& pos) const {
+    return inBounds(pos) && grid[pos.row][pos.col] == 0;
+}
+```
 
-### Initial Validation
+This means the pathfinder only ever needs to ask one question — "is this walkable?" — and gets a safe answer covering both cases. Obstacle placement is handled separately:
 
-To verify the correctness of the grid representation and helper functions, I added a minimal test in `main.cpp` that checks boundary conditions and obstacle handling. Although no pathfinding logic is implemented at this stage, this validation ensures that the grid behaves correctly before introducing the A* algorithm in later weeks.
+```cpp
+void Grid::setObstacle(const Position& pos) {
+    if (inBounds(pos)) {
+        grid[pos.row][pos.col] = 1;
+    }
+}
+```
 
-Screenshots included in this section show the project structure, grid implementation, and helper functions completed during Week 1.
-
----
+![Grid.cpp implementation](images/Grid.cpp_w1.png)
 
 ### Week 1 Outcome
 
-By the end of Week 1, I had a grid-based environment capable of supporting A* pathfinding, including node representation, boundary checks, and obstacle handling. This foundation ensures that the algorithm implementation in Week 2 can focus purely on search logic, cost calculation, and heuristic evaluation without revisiting structural concerns.
-- `isWalkable` checks both bounds and whether a cell is blocked.
+By the end of Week 1, I had a working grid environment with node representation, boundary checking, obstacle placement, and visual output. This foundation meant that Week 2 could focus entirely on search logic without revisiting structural concerns.
 
-
-- I wrote a small test to confirm that obstacles and bounds checks behave correctly.
-- I have not implemented the A* algorithm yet — Week 1 was only about setting up the foundation.
+- `isWalkable` checks both bounds and whether a cell is blocked
+- A small test confirmed obstacles and bounds behave correctly
+- No A* logic yet — Week 1 was only about the foundation
 
 ---
 
-### Outcome
+## Week 2 – Implementing the A* Algorithm
 
-By the end of Week 1, I had a working grid representation, a clean project structure, and core helper functions that will make the A* implementation safer and easier in Week 2.
-
-n Week 2, I implemented the core A* pathfinding algorithm. The goal was to move from a working environment to a complete search that finds the shortest path from start to goal while avoiding obstacles.
+In Week 2, I implemented the core A* pathfinding algorithm. The goal was to move from a working environment to a complete search that finds the shortest path from start to goal while avoiding obstacles.
 
 ### Neighbour Generation
 
 The first step was implementing `getNeighbours` as a dedicated helper. From a given position, it generates the four candidate directions and filters them through `isWalkable`:
 
 ```cpp
-std::vector Pathfinder::getNeighbours(const Position& pos) const
+std::vector<Position> Pathfinder::getNeighbours(const Position& pos) const
 {
-    std::vector neighbours;
+    std::vector<Position> neighbours;
 
-    std::vector directions = {
+    std::vector<Position> directions = {
         { -1,  0 },  // up
         {  1,  0 },  // down
         {  0, -1 },  // left
@@ -113,10 +148,10 @@ This is Manhattan distance — the row gap plus the column gap. It is the correc
 The main loop uses four data structures:
 
 ```cpp
-std::priority_queue openSet;
-std::unordered_map gScore;
-std::unordered_map cameFrom;
-std::unordered_set closed;
+std::priority_queue<OpenNode> openSet;
+std::unordered_map<Position, int, PositionHash> gScore;
+std::unordered_map<Position, Position, PositionHash> cameFrom;
+std::unordered_set<Position, PositionHash> closed;
 ```
 
 **Open set** — a priority queue that always returns the node with the lowest `f = g + h`. The `OpenNode` struct reverses the comparison operator to produce min-heap behaviour:
@@ -126,7 +161,8 @@ struct OpenNode {
     Position pos;
     int f;
 
-    bool operator other.f; // reversed for min-heap
+    bool operator<(const OpenNode& other) const {
+        return f > other.f; // reversed for min-heap
     }
 };
 ```
@@ -144,11 +180,11 @@ struct OpenNode {
 A* does not build the path as it goes — it only records where each cell was reached from. Once the goal is found, `reconstructPath` follows the `cameFrom` chain backwards:
 
 ```cpp
-std::vector Pathfinder::reconstructPath(
-    const std::unordered_map& cameFrom,
+std::vector<Position> Pathfinder::reconstructPath(
+    const std::unordered_map<Position, Position, PositionHash>& cameFrom,
     Position current) const
 {
-    std::vector path;
+    std::vector<Position> path;
     path.push_back(current);
 
     while (cameFrom.count(current)) {
@@ -269,7 +305,7 @@ This is why `PositionHash` exists in `Position.h`:
 ```cpp
 struct PositionHash {
     std::size_t operator()(const Position& p) const noexcept {
-        return (static_cast(p.row) << 32) ^ static_cast(p.col);
+        return (static_cast<std::size_t>(p.row) << 32) ^ static_cast<std::size_t>(p.col);
     }
 };
 ```
@@ -285,7 +321,7 @@ bool runTest(const std::string& name,
              int rows, int cols,
              const Position& start,
              const Position& goal,
-             const std::vector& obstacles,
+             const std::vector<Position>& obstacles,
              bool expectPath)
 ```
 
@@ -348,3 +384,123 @@ Week 4 focused entirely on expanding the test suite to cover more complex layout
 **Test 9** extends the start-equals-goal case to a 1×1 grid — the smallest possible input — confirming no out-of-bounds issues occur at minimum size.
 
 ![Week 4 test output](images/week4_test_output.png)
+
+### Full Test Summary
+
+All 10 tests pass:
+
+```
+========================================
+  SUMMARY: 10 / 10 tests passed
+========================================
+```
+
+![Full test summary](images/week4_summary.png)
+
+### Week 4 Outcome
+
+- Test suite expanded to 10 cases
+- Obstacle-on-start, obstacle-on-goal, and minimum grid size confirmed working
+- Corridor scenario validates path finding in constrained layouts
+- All 10 tests pass
+
+---
+
+## Modern C++ Practices
+
+Throughout this project I made deliberate use of features from C++11 and later. Coming from a C background these required learning, but each one directly improves the safety, readability, or correctness of the code.
+
+### `std::vector` instead of raw arrays
+
+```cpp
+std::vector<std::vector<int>> grid;
+std::vector<Position> path;
+```
+
+In C, a dynamic array requires `malloc`, manual size tracking, and `free`. `std::vector` handles all of this automatically — it grows as needed and cleans up its own memory when it goes out of scope. This eliminates buffer overflow and memory leak risks entirely.
+
+### Range-based for loops
+
+```cpp
+for (const auto& neighbour : getNeighbours(current))
+for (const auto& dir : directions)
+```
+
+Rather than indexing manually with `i`, range-based for loops express intent directly. `const&` means the element is read-only and no copy is made. In C this would require a manual index and explicit array access on every iteration.
+
+### `auto` for type inference
+
+```cpp
+auto path = pathfinder.findPath(start, goal);
+```
+
+Instead of writing `std::vector<Position>` explicitly, `auto` lets the compiler deduce the type. The type is still fully enforced at compile time — `auto` reduces verbosity without losing type safety.
+
+### `const` correctness
+
+```cpp
+bool inBounds(const Position& pos) const;
+bool isWalkable(const Position& pos) const;
+```
+
+The `const` at the end of a method signature means it cannot modify the object's state — enforced by the compiler, not just convention. `const Position&` means the parameter is passed by reference (no copy) but cannot be modified. In C there is no equivalent enforcement.
+
+### STL containers and algorithms
+
+```cpp
+std::priority_queue<OpenNode> openSet;
+std::unordered_map<Position, int, PositionHash> gScore;
+std::unordered_set<Position, PositionHash> closed;
+std::reverse(path.begin(), path.end());
+```
+
+Rather than implementing a priority queue or hash map manually, the project uses well-tested Standard Library implementations. `std::reverse` replaces a manual swap loop with a single named operation.
+
+### Member initialiser lists
+
+```cpp
+Grid::Grid(int rows, int cols)
+    : rows(rows), cols(cols), grid(rows, std::vector<int>(cols, 0))
+```
+
+Member initialiser lists initialise member variables directly at construction. This is more efficient than assigning inside the constructor body and is necessary for members with no default constructor.
+
+### Operator overloading
+
+```cpp
+bool operator==(const Position& other) const {
+    return row == other.row && col == other.col;
+}
+```
+
+Without `operator==` on `Position`, the comparison `if (current == goal)` would not compile. Overloading the operator makes the algorithm code read naturally rather than requiring a manual helper function.
+
+---
+
+## AI Usage
+
+Throughout this project I used Claude (Anthropic) as a learning and development tool. This section documents exactly how it was used.
+
+### How AI was used
+
+**Concept explanation** — Coming from a C background, many C++ features needed explanation before I could use them confidently. I used Claude to understand `unordered_map`, `priority_queue`, reference semantics, `const` correctness, and the difference between ordered and unordered STL containers.
+
+**Algorithm understanding** — I worked through the A* algorithm interactively, asking questions about the relationship between `g`, `h`, and `f`, why admissibility matters, why `reconstructPath` is needed rather than building the path during the search, and how the neighbour update condition guarantees optimality.
+
+**Worked examples** — Concrete examples such as the `{0,0}` to `{4,0}` scenario and the `{0,0}` to `{4,6}` heuristic calculation were worked through in conversation to build intuition before documenting them.
+
+**Code review** — After writing implementations, I discussed them with Claude to check for correctness. One identified issue was the `PositionHash` bit-shift: on 32-bit systems where `size_t` is 32 bits, shifting by 32 is a no-op and causes more hash collisions. On the 64-bit systems this project targets it works correctly, but it is a portability limitation worth noting.
+
+**Report structure** — Claude helped identify that the report needed more analytical depth — explaining *why* decisions were made rather than just *what* was done — and helped structure the content to address the rubric requirements.
+
+### What remained my own work
+
+- All design decisions — class structure, separation of `Grid`, `Pathfinder`, and `Position`, choice of STL containers
+- Writing and understanding every function
+- Test case design — choosing which scenarios to test and what the correct expected outcomes are
+- Debugging and verifying output against expected results
+- All code in the repository
+
+### Reflection on AI use
+
+Using AI as a learning tool rather than a solution generator made the process more effective. Asking "why does this work?" rather than "write this for me" built genuine understanding that I can demonstrate and defend. Every piece of code in this project is something I can explain line by line — which is the standard the rubric holds this work to.
