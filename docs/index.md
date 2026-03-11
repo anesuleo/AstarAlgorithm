@@ -60,44 +60,95 @@ By the end of Week 1, I had a grid-based environment capable of supporting A* pa
 
 By the end of Week 1, I had a working grid representation, a clean project structure, and core helper functions that will make the A* implementation safer and easier in Week 2.
 
-## Week 2 – Implementing the A* Algorithm (Core Search)
+n Week 2, I implemented the core A* pathfinding algorithm. The goal was to move from a working environment to a complete search that finds the shortest path from start to goal while avoiding obstacles.
 
-In Week 2, I implemented the core A* pathfinding algorithm on a grid with 4-direction movement (up, down, left, right). The main goal this week was to move from a working grid environment to a working shortest-path search that correctly returns a path from Start to Goal while avoiding obstacles.
+### Neighbour Generation
 
-### Neighbour Expansion (Search Space)
+The first step was implementing `getNeighbours` as a dedicated helper. From a given position, it generates the four candidate directions and filters them through `isWalkable`:
 
-Before writing the full A* loop, I implemented neighbour generation as a dedicated helper function. From a given `Position`, I generate the 4 candidate neighbours and then filter them using `Grid::isWalkable(...)`. This ensures that the algorithm only expands valid nodes (inside the grid and not blocked) and prevents out-of-bounds access during the search.
-
-This step was important because A* correctness depends on expanding exactly the valid neighbouring states in the search space.
-
-### Heuristic Function (Manhattan Distance)
-
-I added a heuristic function using Manhattan distance:
-
-- `h(n) = |row_n - row_goal| + |col_n - col_goal|`
-
-This heuristic matches the movement rules (4- directional movement, no diagonals), so it remains admissible and consistent in this environment. In practice, this means A* is guided toward the goal while still guaranteeing an optimal shortest path on an unweighted 4-direction grid.
-
-### Open Set, Cost Tracking, and Parent Mapping
-
-I implemented the main A* loop using these structures:
-
-- **Open set**: a `priority_queue` ordered by the lowest `f(n) = g(n) + h(n)` so that the most promising node is expanded first.
-- **`gScore`**: stores the best known cost from the start to each explored position.
-- **`cameFrom`**: stores parent pointers so that once the goal is reached, the path can be reconstructed.
-- **Closed set**: prevents re-expanding nodes that have already been processed, reducing duplicate work and improving efficiency.
-
-Each step to a neighbour on the grid is treated as a uniform cost of `1`, which fits the current grid model (unweighted traversal).
-
-### Path Reconstruction and Output
-
-When the goal is reached, I reconstruct the final path by walking backwards through `cameFrom` from the goal to the start, then reversing the result so it is in start-to-goal order. This produces the final `std::vector<Position>` path that the rest of the program can display.
 ```cpp
-std::vector<Position> Pathfinder::reconstructPath(
-    const std::unordered_map<Position, Position, PositionHash>& cameFrom,
+std::vector Pathfinder::getNeighbours(const Position& pos) const
+{
+    std::vector neighbours;
+
+    std::vector directions = {
+        { -1,  0 },  // up
+        {  1,  0 },  // down
+        {  0, -1 },  // left
+        {  0,  1 }   // right
+    };
+
+    for (const auto& dir : directions)
+    {
+        Position next{ pos.row + dir.row, pos.col + dir.col };
+        if (grid.isWalkable(next))
+            neighbours.push_back(next);
+    }
+
+    return neighbours;
+}
+```
+
+The directions are row/column offsets. For example from `{2,3}`, applying `{-1,0}` gives `{1,3}` (up) and `{0,1}` gives `{2,4}` (right). Any candidate that fails `isWalkable` is discarded before it can cause issues.
+
+![Neighbour generation](images/week2_neighbours.png)
+
+### Heuristic Function — Manhattan Distance
+
+The heuristic estimates the remaining distance from any cell to the goal:
+
+```cpp
+int Pathfinder::heuristic(const Position& a, const Position& b) const
+{
+    return std::abs(a.row - b.row) + std::abs(a.col - b.col);
+}
+```
+
+This is Manhattan distance — the row gap plus the column gap. It is the correct heuristic for 4-direction movement because with only up/down/left/right available, the minimum steps to the goal can never be less than the row gap plus the column gap. A heuristic must be **admissible** — it must never overestimate — and Manhattan distance satisfies this.
+
+![Heuristic function](images/week2_heuristic.png)
+
+### Core A* Structures
+
+The main loop uses four data structures:
+
+```cpp
+std::priority_queue openSet;
+std::unordered_map gScore;
+std::unordered_map cameFrom;
+std::unordered_set closed;
+```
+
+**Open set** — a priority queue that always returns the node with the lowest `f = g + h`. The `OpenNode` struct reverses the comparison operator to produce min-heap behaviour:
+
+```cpp
+struct OpenNode {
+    Position pos;
+    int f;
+
+    bool operator other.f; // reversed for min-heap
+    }
+};
+```
+
+**gScore** — the exact cost from start to each explored position. Unlike `h`, this is not an estimate.
+
+**cameFrom** — the breadcrumb trail. Each position maps to where it was reached from, used to reconstruct the path at the end.
+
+**Closed set** — positions already fully processed. Because the priority queue can contain duplicate entries for the same node, the closed set ensures each node is only expanded once.
+
+![A* main loop](images/week2_astar_loop.png)
+
+### Path Reconstruction
+
+A* does not build the path as it goes — it only records where each cell was reached from. Once the goal is found, `reconstructPath` follows the `cameFrom` chain backwards:
+
+```cpp
+std::vector Pathfinder::reconstructPath(
+    const std::unordered_map& cameFrom,
     Position current) const
 {
-    std::vector<Position> path;
+    std::vector path;
     path.push_back(current);
 
     while (cameFrom.count(current)) {
@@ -110,39 +161,190 @@ std::vector<Position> Pathfinder::reconstructPath(
 }
 ```
 
-To validate the output, I added:
+Starting at the goal, the loop follows each parent back until it reaches the start node — which has no entry in `cameFrom` because nothing led to it. After reversing, the path reads start to goal.
 
-- A printed path length (`path.size()`)
-- A visual grid overlay where:
-  - `S` = start
-  - `G` = goal
-  - `#` = obstacle
-  - `*` = returned path cells
-
-This made it easy to confirm that the returned path is continuous, avoids obstacles, and reaches the goal.
-
----
-
-### Screenshots (Week 2)
-
-#### 1) Neighbour generation + filtering
-![Neighbour generation](images/week2_neighbours.png)
-
-#### 2) Manhattan heuristic function
-![Heuristic function](images/week2_heuristic.png)
-
-#### 3) A* main loop (`openSet`, `gScore`, `cameFrom`, `closed`)
-![A* main loop](images/week2_astar_loop.png)
-
-#### 4) Path reconstruction
 ![Path reconstruction](images/week2_reconstruct.png)
 
-#### 5) Output (path overlay)
-![A* output](images/week2_output.png)
+### Visual Output
 
----
+To confirm correctness, `printWithPath` overlays the path on the grid:
+
+```
+S . . . . . .
+* . . # . . .
+* . . # . . .
+* * * # . . .
+. . * * * * G
+```
+
+`S` = start, `G` = goal, `#` = obstacle, `*` = path, `.` = free cell.
+
+![A* output](images/week2_output.png)
 
 ### Week 2 Outcome
 
-By the end of Week 2, I had a working A* implementation that can find and return a shortest path on a grid with obstacles using a Manhattan heuristic. The algorithm now produces both a coordinate path and a visual grid overlay, which will make further testing and future improvements (such as diagonals or weighted cells) easier to validate.
+By the end of Week 2, I had a fully working A* implementation that finds the shortest path on a grid with obstacles, returns a coordinate sequence, and displays the result visually. The no-path case returns an empty vector cleanly.
 
+---
+
+## Week 3 – Understanding, Analysis, and Structured Testing
+
+Week 3 had two focuses: developing a deeper analytical understanding of how the algorithm works internally, and refactoring `main.cpp` into a structured test suite.
+
+### Understanding f, g, and h
+
+The three values that drive all of A*'s decisions:
+
+| Value | What it is | How it's calculated |
+|---|---|---|
+| `g` | Exact steps taken from start to current cell | Incremented by 1 each step |
+| `h` | Estimated steps remaining to goal | Manhattan distance |
+| `f` | Combined priority score | `f = g + h` |
+
+`g` is not an estimate — it is the real accumulated cost. `h` is always an estimate. Together they balance how far you have already gone against how far you still have to go.
+
+**Worked example — start `{0,0}`, goal `{4,6}`:**
+
+At the start node:
+```
+g = 0
+h = |0-4| + |0-6| = 4 + 6 = 10
+f = 10
+```
+
+After one step down to `{1,0}`:
+```
+g = 1
+h = |1-4| + |0-6| = 3 + 6 = 9
+f = 10
+```
+
+After one step right to `{0,1}` instead:
+```
+g = 1
+h = |0-4| + |1-6| = 4 + 5 = 9
+f = 10
+```
+
+Both tie at `f = 10` from the start corner — the priority queue picks whichever it stored first. As the search progresses, `h` becomes more discriminating and breaks ties naturally.
+
+**How the heuristic steers the search:**
+
+Consider start `{0,0}`, goal `{4,0}` — directly below. Expanding from start:
+
+- Move down to `{1,0}`: `h = |1-4| + 0 = 3`, `f = 4`
+- Move right to `{0,1}`: `h = |0-4| + 1 = 5`, `f = 6`
+
+A* picks `{1,0}` first because `f = 4 < 6`. Moving right increases `h` because it takes you away from the goal column — the heuristic penalises this immediately. The algorithm is steered downward without any explicit direction logic; it emerges from the `f` score alone.
+
+### Analysing the Key Code Block
+
+The neighbour update condition is the most important logic in the algorithm:
+
+```cpp
+if (!gScore.count(neighbour) || tentativeG < gScore[neighbour])
+{
+    cameFrom[neighbour] = current;
+    gScore[neighbour] = tentativeG;
+    int f = tentativeG + heuristic(neighbour, goal);
+    openSet.push({ neighbour, f });
+}
+```
+
+Breaking down the condition:
+
+- `!gScore.count(neighbour)` — this neighbour has never been visited. We have no record of it, so we must add it.
+- `tentativeG < gScore[neighbour]` — we have visited this neighbour before, but we just found a cheaper route to it. Update to the better route.
+
+If neither is true — we've seen this neighbour and already have a route at least as good — we do nothing. This is what guarantees A* finds the optimal path, not just any path.
+
+Inside the block, three things happen in order: the parent is recorded in `cameFrom`, the best known cost is updated in `gScore`, and the neighbour is pushed onto the open set with its new `f` score.
+
+### Why unordered_map and unordered_set
+
+Both structures use hashing for O(1) average lookup. The update condition above runs on every neighbour of every node expanded — potentially thousands of times on a larger grid. Using the ordered alternatives (`map`, `set`) would give O(log n) lookup, which compounds into a meaningful slowdown in a tight search loop.
+
+This is why `PositionHash` exists in `Position.h`:
+
+```cpp
+struct PositionHash {
+    std::size_t operator()(const Position& p) const noexcept {
+        return (static_cast(p.row) << 32) ^ static_cast(p.col);
+    }
+};
+```
+
+The unordered containers require a hash function for any custom key type. There is no built-in hash for a struct like `Position`, so this provides one by combining row and column into a single integer.
+
+### Refactoring main.cpp
+
+The original `main.cpp` had a single hardcoded scenario with no pass/fail validation. I refactored it around a `runTest` helper:
+
+```cpp
+bool runTest(const std::string& name,
+             int rows, int cols,
+             const Position& start,
+             const Position& goal,
+             const std::vector& obstacles,
+             bool expectPath)
+```
+
+This handles all boilerplate — building the grid, running the pathfinder, printing results, and comparing against the expected outcome. Each scenario is a single self-documenting call. A summary prints at the end:
+
+```
+========================================
+  SUMMARY: 5 / 5 tests passed
+========================================
+```
+
+![Test output](images/week3_test_output.png)
+
+### Test Cases
+
+| # | Scenario | Expected |
+|---|---|---|
+| 1 | Basic vertical wall, path goes around | Path found |
+| 2 | Goal surrounded on all 4 sides | No path |
+| 3 | Start equals goal | Path of length 1 |
+| 4 | Full vertical wall, grid cut in two | No path |
+| 5 | Open grid, no obstacles | Path found |
+
+**Test 2** confirms the algorithm returns an empty path rather than crashing or looping when the goal is completely surrounded.
+
+**Test 3** is the trivial edge case — start and goal are the same position. `reconstructPath` should return a vector containing just that single node.
+
+**Test 4** proves the no-path case works when it is geometrically impossible to reach the goal, not just blocked in one direction.
+
+![Test cases output](images/week3_test_cases.png)
+
+### Week 3 Outcome
+
+- Deep understanding of f, g, h developed with worked examples
+- Key algorithm blocks analysed line by line
+- `main.cpp` refactored into a reusable `runTest` helper
+- 5 structured test cases covering paths, blocked goals, trivial cases, and impossible scenarios
+- All 5 tests pass
+
+---
+
+## Week 4 – Expanded Test Cases
+
+Week 4 focused entirely on expanding the test suite to cover more complex layouts and additional edge cases not addressed in Week 3.
+
+### New Test Cases
+
+| # | Scenario | Expected |
+|---|---|---|
+| 6 | Narrow corridor — only one valid route | Path found |
+| 7 | Obstacle placed directly on the start | No path |
+| 8 | Obstacle placed directly on the goal | No path |
+| 9 | 1×1 grid, start equals goal | Path of length 1 |
+| 10 | Large open grid, long path | Path found |
+
+**Tests 7 and 8** test what happens when the problem is broken from the outset. An obstacle on the start means the start node itself fails `isWalkable`, so `getNeighbours` produces nothing and the algorithm terminates with an empty path immediately. The same logic applies to the goal — if it is marked as an obstacle it can never be reached.
+
+**Test 6** creates a narrow corridor that forces the algorithm through one specific route. This makes the output easy to verify by visual inspection.
+
+**Test 9** extends the start-equals-goal case to a 1×1 grid — the smallest possible input — confirming no out-of-bounds issues occur at minimum size.
+
+![Week 4 test output](images/week4_test_output.png)
