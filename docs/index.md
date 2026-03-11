@@ -11,11 +11,17 @@ The program represents a two-dimensional grid where each cell can either be free
 ## Week 1 – Grid Representation and Core Data Structures
 
 In Week 1, I focused on establishing the data structures and constraints required for A* before implementing the algorithm itself. The goal was to create a grid representation that supports safe neighbour expansion, obstacle handling, and boundary validation.
+### UML Diagram
+
+![UML Diagram](images/uml_digram.svg)
+
+The diagram above illustrates the class structure of the project. Although I produced it after the implementation was complete, it serves as a useful architectural overview before diving into the details of each component. The design follows a strict separation of responsibilities — each component has a single well-defined role and dependencies only flow in one direction: `main` → `TestPath` → `Pathfinder` → `Grid` → `Position`. There are no circular dependencies.
+This layered structure was a deliberate design decision. Keeping the grid logic inside `Grid`, the search logic inside `Pathfinder`, and the test infrastructure inside `TestPath` means each component can be understood, modified, or extended independently. `Pathfinder` holds a reference to `Grid` rather than owning it — `Grid` is created externally and passed in, so the two are loosely coupled. This separation also made testing straightforward — `TestPath` can construct its own isolated `Grid` and `Pathfinder` instances per test without any shared state between scenarios.
 
 ### Grid Representation
 
-I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell is either `0` (traversable) or `1` (obstacle). This allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding.
-![UML Diagram](images/uml_diagram.svg)
+I implemented the environment as a two-dimensional grid using a `std::vector<std::vector<int>>`. Each cell is either `0` (navigable) or `1` (obstacle). This allows direct access to neighbouring cells using row and column indices, which aligns naturally with grid-based pathfinding.
+
 ```cpp
 class Grid {
 private:
@@ -46,7 +52,7 @@ struct Position {
 
 The `operator==` overload is essential — it allows the algorithm to compare two positions directly with `==`, for example when checking `if (current == goal)`. Without it the compiler would not know how to compare two `Position` values.
 
-![Position structure](images/position.h_w1.png)
+![Position structure](images/position_week1.png)
 
 ### Boundary Validation
 
