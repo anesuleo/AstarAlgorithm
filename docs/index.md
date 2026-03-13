@@ -107,47 +107,17 @@ In Week 2, I implemented the core A* pathfinding algorithm. The goal was to move
 
 The first step was implementing `getNeighbours` as a dedicated helper. From a given position, it generates the four candidate directions and filters them through `isWalkable`:
 
-```cpp
-std::vector<Position> Pathfinder::getNeighbours(const Position& pos) const
-{
-    std::vector<Position> neighbours;
-
-    std::vector<Position> directions = {
-        { -1,  0 },  // up
-        {  1,  0 },  // down
-        {  0, -1 },  // left
-        {  0,  1 }   // right
-    };
-
-    for (const auto& dir : directions)
-    {
-        Position next{ pos.row + dir.row, pos.col + dir.col };
-        if (grid.isWalkable(next))
-            neighbours.push_back(next);
-    }
-
-    return neighbours;
-}
-```
+![Neighbour generation](images/neighbour_week2.png)
 
 The directions are row/column offsets. For example from `{2,3}`, applying `{-1,0}` gives `{1,3}` (up) and `{0,1}` gives `{2,4}` (right). Any candidate that fails `isWalkable` is discarded before it can cause issues.
-
-![Neighbour generation](images/week2_neighbours.png)
 
 ### Heuristic Function — Manhattan Distance
 
 The heuristic estimates the remaining distance from any cell to the goal:
 
-```cpp
-int Pathfinder::heuristic(const Position& a, const Position& b) const
-{
-    return std::abs(a.row - b.row) + std::abs(a.col - b.col);
-}
-```
+![Heuristic function](images/week2_heuristic.png)
 
 This is Manhattan distance — the row gap plus the column gap. It is the correct heuristic for 4-direction movement because with only up/down/left/right available, the minimum steps to the goal can never be less than the row gap plus the column gap. A heuristic must be **admissible** — it must never overestimate — and Manhattan distance satisfies this.
-
-![Heuristic function](images/week2_heuristic.png)
 
 ### Core A* Structures
 
