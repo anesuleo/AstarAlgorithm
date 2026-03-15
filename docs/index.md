@@ -150,6 +150,7 @@ struct OpenNode {
 **Closed set** — positions already fully processed. Because the priority queue can contain duplicate entries for the same node, the closed set ensures each node is only expanded once.
 
 ![A* main loop](images/week2_astar_loop.png)
+![A* main loop](images/week2_astar_loop2.png)
 
 ### Path Reconstruction
 
@@ -174,8 +175,6 @@ std::vector<Position> Pathfinder::reconstructPath(
 ```
 
 Starting at the goal, the loop follows each parent back until it reaches the start node — which has no entry in `cameFrom` because nothing led to it. After reversing, the path reads start to goal.
-
-![Path reconstruction](images/week2_reconstruct.png)
 
 ### Visual Output
 
