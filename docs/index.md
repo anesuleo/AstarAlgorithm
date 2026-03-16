@@ -300,7 +300,7 @@ bool runTest(const std::string& name,
              bool expectPath)
 ```
 
-This handles all boilerplate — building the grid, running the pathfinder, printing results, and comparing against the expected outcome. Each scenario is a single self-documenting call. A summary prints at the end:
+This handles all the standards — building the grid, running the pathfinder, printing results, and comparing against the expected outcome. Each scenario is a single self-documenting call. A summary prints at the end:
 
 ```
 ========================================
@@ -381,18 +381,19 @@ All 10 tests pass:
 
 ---
 
-## Modern C++ Practices
+---
 
-Throughout this project I made deliberate use of features from C++11 and later. Coming from a C background these required learning, but each one directly improves the safety, readability, or correctness of the code.
+## Modern C++ Usage
 
-### `std::vector` instead of raw arrays
+Throughout this project I made deliberate use of features introduced in C++11 and later. Coming from a C background, these required learning but each one directly improved the safety, readability, or correctness of the code.
+
+### `auto` for type inference
 
 ```cpp
-std::vector<std::vector<int>> grid;
-std::vector<Position> path;
+auto path = pathfinder.findPath(start, goal);
 ```
 
-In C, a dynamic array requires `malloc`, manual size tracking, and `free`. `std::vector` handles all of this automatically — it grows as needed and cleans up its own memory when it goes out of scope. This eliminates buffer overflow and memory leak risks entirely.
+Instead of writing `std::vector<Position>` explicitly, `auto` lets the compiler deduce the type from context. The type is still fully enforced at compile time — `auto` reduces verbosity without losing type safety.
 
 ### Range-based for loops
 
@@ -401,15 +402,7 @@ for (const auto& neighbour : getNeighbours(current))
 for (const auto& dir : directions)
 ```
 
-Rather than indexing manually with `i`, range-based for loops express intent directly. `const&` means the element is read-only and no copy is made. In C this would require a manual index and explicit array access on every iteration.
-
-### `auto` for type inference
-
-```cpp
-auto path = pathfinder.findPath(start, goal);
-```
-
-Instead of writing `std::vector<Position>` explicitly, `auto` lets the compiler deduce the type. The type is still fully enforced at compile time — `auto` reduces verbosity without losing type safety.
+Rather than manually indexing with `i` and accessing elements by index, range-based for loops express intent directly — "for each element in this collection." `const&` ensures the element is read-only and no unnecessary copy is made.
 
 ### `const` correctness
 
@@ -418,29 +411,56 @@ bool inBounds(const Position& pos) const;
 bool isWalkable(const Position& pos) const;
 ```
 
-The `const` at the end of a method signature means it cannot modify the object's state — enforced by the compiler, not just convention. `const Position&` means the parameter is passed by reference (no copy) but cannot be modified. In C there is no equivalent enforcement.
+Methods marked `const` at the end of their signature guarantee they will not modify the object's state — enforced by the compiler, not just convention. Parameters passed as `const&` are passed by reference (no copy) but cannot be modified inside the function. In C there is no equivalent enforcement mechanism.
 
-### STL containers and algorithms
+### STL containers
 
 ```cpp
 std::priority_queue<OpenNode> openSet;
 std::unordered_map<Position, int, PositionHash> gScore;
 std::unordered_set<Position, PositionHash> closed;
+std::vector<std::vector<int>> grid;
+```
+
+Rather than implementing a priority queue, hash map, or hash set manually, the project uses well-tested Standard Library implementations. Each container was chosen for a specific reason — `priority_queue` for O(1) access to the lowest `f` node, `unordered_map` and `unordered_set` for O(1) average lookup during the search loop, and `vector` for dynamic resizable storage without manual memory management.
+
+### `std::reverse`
+
+```cpp
 std::reverse(path.begin(), path.end());
 ```
 
-Rather than implementing a priority queue or hash map manually, the project uses well-tested Standard Library implementations. `std::reverse` replaces a manual swap loop with a single named operation.
+Rather than writing a manual swap loop, `std::reverse` expresses the intent in a single named operation. `path.begin()` and `path.end()` are iterators — a modern C++ concept that generalises the idea of a pointer into a container.
 
-### Member initialiser lists
+---
+
+## Reflection and Learning Outcomes
+
+### Applying C++ Concepts from Class
+
+**Constructors and member initialiser lists**
+
+One of the first C++ concepts applied was the constructor with a member initialiser list in the `Grid` class:
 
 ```cpp
 Grid::Grid(int rows, int cols)
     : rows(rows), cols(cols), grid(rows, std::vector<int>(cols, 0))
 ```
 
-Member initialiser lists initialise member variables directly at construction. This is more efficient than assigning inside the constructor body and is necessary for members with no default constructor.
+In class we learned that member initialiser lists initialise members directly at construction rather than assigning them inside the body. This project showed why that matters in practice — `grid` is a `vector<vector<int>>` with no sensible default state, so it must be initialised with the correct dimensions at construction time. Doing it in the body would mean default-constructing an empty vector and then overwriting it, which is wasteful.
 
-### Operator overloading
+The `Pathfinder` constructor uses the same pattern:
+
+```cpp
+Pathfinder::Pathfinder(const Grid& grid)
+    : grid(grid)
+```
+
+Here the member initialiser list is the *only* way to initialise a reference member — references cannot be assigned after construction, only initialised.
+
+**Operator overloading**
+
+In class we covered how C++ allows operators to be redefined for custom types. This project required two operator overloads. The first was `operator==` on `Position`:
 
 ```cpp
 bool operator==(const Position& other) const {
@@ -448,7 +468,58 @@ bool operator==(const Position& other) const {
 }
 ```
 
-Without `operator==` on `Position`, the comparison `if (current == goal)` would not compile. Overloading the operator makes the algorithm code read naturally rather than requiring a manual helper function.
+Without this, writing `if (current == goal)` in the A* loop would not compile — the compiler has no built-in way to compare two custom structs. The overload makes the algorithm code read naturally.
+
+The second was `operator<` on `OpenNode`:
+
+```cpp
+bool operator<(const OpenNode& other) const {
+    return f > other.f;
+}
+```
+
+This one is more subtle. `std::priority_queue` is a max-heap by default — it returns the largest element first. By reversing the comparison (returning `f > other.f` instead of `f < other.f`), the priority queue behaves as a min-heap, always returning the node with the lowest `f` score. This is a direct application of operator overloading to control the behaviour of an STL container.
+
+**References and const references**
+
+Coming from C, pointers were the only way to avoid copying data into a function. In this project, references are used throughout:
+
+```cpp
+Pathfinder::Pathfinder(const Grid& grid)
+bool Grid::inBounds(const Position& pos) const
+```
+
+`const Grid&` passes the grid by reference so no copy is made, while `const` guarantees the function cannot modify it. Understanding the difference between passing by value, by pointer, and by reference was one of the more important transitions from C to C++.
+
+---
+
+### Biggest Challenges
+
+**Structuring the project across multiple files**
+
+The biggest practical challenge was managing a multi-file C++ project correctly. In C, splitting code across files is straightforward — headers declare things, source files define them. In C++, classes add complexity: the header must declare the full class interface, the source file defines the methods, and every file that uses the class must include the correct header.
+
+The issue that caused the most friction was understanding what belongs in a header versus a source file, and keeping includes consistent. The `TestPath.h` error encountered during development — where `std::string`, `Position`, and `std::vector` were used without being included — was a direct result of this. The fix reinforced that a header must be self-contained: it cannot rely on whatever the including file happened to include first.
+
+**C++ syntax coming from C**
+
+Coming from a C background, several C++ patterns required adjustment. The most significant were reference semantics (`&` instead of `*`), `const` on method signatures, and the STL container syntax. In C, a function that takes a pointer makes it obvious that no copy is being made. In C++, `const Position&` achieves the same thing but looks different. Building familiarity with these patterns took time but made the final code significantly cleaner than an equivalent C-style implementation would have been.
+
+---
+
+### Learning Outcomes
+
+**Understanding A* deeply**
+
+Before this project, A* was an algorithm I had heard of but never implemented. Working through it from scratch — building the grid first, then the heuristic, then the full search loop, then path reconstruction — built a much deeper understanding than reading about it would have. The key insight was understanding why `f = g + h` works: `g` keeps the search honest about how far it has already travelled, and `h` steers it toward the goal. Neither alone is sufficient.
+
+**Multi-file C++ project structure**
+
+By the end of the project, structuring code across `.h` and `.cpp` files felt natural. The discipline of keeping headers self-contained, separating interface from implementation, and organising responsibilities across classes (`Grid`, `Pathfinder`, `TestPath`) is something I will carry forward into future C++ projects.
+
+**Comfort with C++ classes**
+
+This project was the first time I used C++ classes extensively in a real implementation rather than in exercises. Seeing how `const` correctness, member initialiser lists, operator overloading, and encapsulation work together in a functioning program made those concepts concrete in a way that isolated examples did not.
 
 ---
 
@@ -460,13 +531,13 @@ Throughout this project I used Claude (Anthropic) as a learning and development 
 
 **Concept explanation** — Coming from a C background, many C++ features needed explanation before I could use them confidently. I used Claude to understand `unordered_map`, `priority_queue`, reference semantics, `const` correctness, and the difference between ordered and unordered STL containers.
 
-**Algorithm understanding** — I worked through the A* algorithm interactively, asking questions about the relationship between `g`, `h`, and `f`, why admissibility matters, why `reconstructPath` is needed rather than building the path during the search, and how the neighbour update condition guarantees optimality.
+**Algorithm understanding** — I worked through the A* algorithm interactively, asking questions about the relationship between `g`, `h`, and `f`, why admissibility matters for the heuristic, why `reconstructPath` is needed rather than building the path during the search, and how the neighbour update condition guarantees optimality.
 
-**Worked examples** — Concrete examples such as the `{0,0}` to `{4,0}` scenario and the `{0,0}` to `{4,6}` heuristic calculation were worked through in conversation to build intuition before documenting them.
+**Worked examples** — Concrete examples such as the `{0,0}` to `{4,0}` tiebreaker scenario and the `{0,0}` to `{4,6}` heuristic calculation were worked through in conversation to build intuition before documenting them in the report.
 
-**Code review** — After writing implementations, I discussed them with Claude to check for correctness. One identified issue was the `PositionHash` bit-shift: on 32-bit systems where `size_t` is 32 bits, shifting by 32 is a no-op and causes more hash collisions. On the 64-bit systems this project targets it works correctly, but it is a portability limitation worth noting.
+**Code review** — After writing implementations, I discussed them with Claude to check for correctness. One issue identified was in `PositionHash`: on 32-bit systems where `size_t` is 32 bits, shifting by 32 is a no-op and causes more hash collisions. On the 64-bit systems this project targets it works correctly, but it is a portability limitation worth noting.
 
-**Report structure** — Claude helped identify that the report needed more analytical depth — explaining *why* decisions were made rather than just *what* was done — and helped structure the content to address the rubric requirements.
+**Report structure** — Claude helped identify that the report needed more analytical depth — explaining *why* decisions were made rather than just *what* was done — and helped structure content to meet the rubric requirements.
 
 ### What remained my own work
 
@@ -476,6 +547,26 @@ Throughout this project I used Claude (Anthropic) as a learning and development 
 - Debugging and verifying output against expected results
 - All code in the repository
 
+### Reflection on AI use
+
+Using AI as a learning tool rather than a solution generator made the process more effective. Asking "why does this work?" rather than "write this for me" built genuine understanding that I can demonstrate and defend. Every piece of code in this project is something I can explain line by line — which is the standard the rubric holds this work to.
+
+---
+
+## References and Tools Used
+
+**Lecturer Material**
+- Lynch, M. (2025). *C++ Programming – A\* Algorithm Project Brief and Rubric*. ATU Galway.
+
+**AI Tools**
+- Anthropic. (2025). *Claude (claude.ai)*. Used for concept explanation, algorithm understanding, code review, and report structuring. https://claude.ai
+- OpenAI. (2025). *ChatGPT*. Used for project timeline planning and scheduling. https://chat.openai.com
+
+**Diagramming**
+- PlantUML. (2025). *PlantUML – Open-source UML diagram tool*. Used to generate the class diagram. https://plantuml.com
+
+**Reference Material**
+- cppreference.com. (2025). *C++ Standard Library reference*. Used for STL container documentation (`std::priority_queue`, `std::unordered_map`, `std::unordered_set`). https://en.cppreference.com
 ### Reflection on AI use
 
 Using AI as a learning tool rather than a solution generator made the process more effective. Asking "why does this work?" rather than "write this for me" built genuine understanding that I can demonstrate and defend. Every piece of code in this project is something I can explain line by line — which is the standard the rubric holds this work to.
