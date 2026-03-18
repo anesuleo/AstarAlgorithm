@@ -567,13 +567,13 @@ Using AI as a learning tool rather than a solution generator made my process mor
 
 **Lecturer Material**
 - Lynch, M. (2025). *C++ Programming – A\* Algorithm Project Brief and Rubric*. ATU Galway.
-
+ 
 **AI Tools**
-- Anthropic. (2025). *Claude (claude.ai)*. Used for concept explanation, algorithm understanding, code review, and report structuring. https://claude.ai
-- OpenAI. (2025). *ChatGPT*. Used for project timeline planning and scheduling. https://chat.openai.com
-
+- Anthropic. (2025). *Claude (claude.ai)*. Used for concept explanation, algorithm understanding, code review, and report structuring. [https://claude.ai](https://claude.ai)
+- OpenAI. (2025). *ChatGPT*. Used for project timeline planning and scheduling. [https://chat.openai.com](https://chat.openai.com)
+ 
 **Diagramming**
-- PlantUML. (2025). *PlantUML – Open-source UML diagram tool*. Used to generate the class diagram. https://plantuml.com
-
+- PlantUML. (2025). *PlantUML – Open-source UML diagram tool*. Used to generate the class diagram. [https://plantuml.com](https://plantuml.com)
+ 
 **Reference Material**
-- cppreference.com. (2025). *C++ Standard Library reference*. Used for STL container documentation (`std::priority_queue`, `std::unordered_map`, `std::unordered_set`). https://en.cppreference.com
+- cppreference.com. (2025). *C++ Standard Library reference*. Used for STL container documentation (`std::priority_queue`, `std::unordered_map`, `std::unordered_set`). [https://en.cppreference.com](https://en.cppreference.com)
