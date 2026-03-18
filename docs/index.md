@@ -198,60 +198,60 @@ By the end of Week 2, I had a fully working A* implementation that finds the sho
 
 ---
 
-## Week 3 – Understanding, Analysis, and Structured Testing
-
-Week 3 had two focuses: developing a deeper analytical understanding of how the algorithm works internally, and refactoring `main.cpp` into a structured test suite.
-
+## Week 3 – Deep Dive: Understanding the Algorithm
+ 
+Week 3 was dedicated entirely to developing a deeper analytical understanding of how the A* algorithm works internally. Rather than adding new features, the focus was on studying the existing implementation closely — tracing through the logic, working through concrete examples, and understanding the reasoning behind each design decision.
+ 
 ### Understanding f, g, and h
-
+ 
 The three values that drive all of A*'s decisions:
-
+ 
 | Value | What it is | How it's calculated |
 |---|---|---|
 | `g` | Exact steps taken from start to current cell | Incremented by 1 each step |
 | `h` | Estimated steps remaining to goal | Manhattan distance |
 | `f` | Combined priority score | `f = g + h` |
-
+ 
 `g` is not an estimate — it is the real accumulated cost. `h` is always an estimate. Together they balance how far you have already gone against how far you still have to go.
-
+ 
 **Worked example — start `{0,0}`, goal `{4,6}`:**
-
+ 
 At the start node:
 ```
 g = 0
 h = |0-4| + |0-6| = 4 + 6 = 10
 f = 10
 ```
-
+ 
 After one step down to `{1,0}`:
 ```
 g = 1
 h = |1-4| + |0-6| = 3 + 6 = 9
 f = 10
 ```
-
+ 
 After one step right to `{0,1}` instead:
 ```
 g = 1
 h = |0-4| + |1-6| = 4 + 5 = 9
 f = 10
 ```
-
+ 
 Both tie at `f = 10` from the start corner — the priority queue picks whichever it stored first. As the search progresses, `h` becomes more discriminating and breaks ties naturally.
-
+ 
 **How the heuristic steers the search:**
-
+ 
 Consider start `{0,0}`, goal `{4,0}` — directly below. Expanding from start:
-
+ 
 - Move down to `{1,0}`: `h = |1-4| + 0 = 3`, `f = 4`
 - Move right to `{0,1}`: `h = |0-4| + 1 = 5`, `f = 6`
-
+ 
 A* picks `{1,0}` first because `f = 4 < 6`. Moving right increases `h` because it takes you away from the goal column — the heuristic penalises this immediately. The algorithm is steered downward without any explicit direction logic; it emerges from the `f` score alone.
-
+ 
 ### Analysing the Key Code Block
-
+ 
 The neighbour update condition is the most important logic in the algorithm:
-
+ 
 ```cpp
 if (!gScore.count(neighbour) || tentativeG < gScore[neighbour])
 {
@@ -261,22 +261,22 @@ if (!gScore.count(neighbour) || tentativeG < gScore[neighbour])
     openSet.push({ neighbour, f });
 }
 ```
-
+ 
 Breaking down the condition:
-
+ 
 - `!gScore.count(neighbour)` — this neighbour has never been visited. We have no record of it, so we must add it.
 - `tentativeG < gScore[neighbour]` — we have visited this neighbour before, but we just found a cheaper route to it. Update to the better route.
-
+ 
 If neither is true — we've seen this neighbour and already have a route at least as good — we do nothing. This is what guarantees A* finds the optimal path, not just any path.
-
+ 
 Inside the block, three things happen in order: the parent is recorded in `cameFrom`, the best known cost is updated in `gScore`, and the neighbour is pushed onto the open set with its new `f` score.
-
+ 
 ### Why unordered_map and unordered_set
-
+ 
 Both structures use hashing for O(1) average lookup. The update condition above runs on every neighbour of every node expanded — potentially thousands of times on a larger grid. Using the ordered alternatives (`map`, `set`) would give O(log n) lookup, which compounds into a meaningful slowdown in a tight search loop.
-
+ 
 This is why `PositionHash` exists in `Position.h`:
-
+ 
 ```cpp
 struct PositionHash {
     std::size_t operator()(const Position& p) const noexcept {
@@ -284,13 +284,36 @@ struct PositionHash {
     }
 };
 ```
-
+ 
 The unordered containers require a hash function for any custom key type. There is no built-in hash for a struct like `Position`, so this provides one by combining row and column into a single integer.
-
-### Refactoring main.cpp
-
-The original `main.cpp` had a single hardcoded scenario with no pass/fail validation. I refactored it around a `runTest` helper:
-
+ 
+### Week 3 Outcome
+ 
+- Deep understanding of `f`, `g`, and `h` developed with concrete worked examples
+- Heuristic steering behaviour understood and documented
+- Key algorithm blocks analysed line by line
+- Understanding of why `unordered_map` and `unordered_set` were chosen over their ordered equivalents
+ 
+---
+ 
+## Week 4 – Structured Testing and File Organisation
+ 
+Week 4 introduced a dedicated test suite for the project. The motivation was twofold: to validate the algorithm across a range of scenarios, and to restructure the codebase in a way that reflects good modern C++ practice.
+ 
+### Why Separate Test Files
+ 
+Up to this point, `main.cpp` was doing two jobs — running the program and containing all test logic. In modern C++ development, keeping concerns separated across files is important. A single file that grows to handle multiple responsibilities becomes harder to read, harder to maintain, and harder to extend.
+ 
+The solution was to introduce two new files: `TestPath.h` and `TestPath.cpp`. All test infrastructure and test cases live in these files, and `main.cpp` is reduced to a clean entry point that simply calls `runAllTests()` and reports the result.
+ 
+![File structure](images/week4_file_structure.png)
+ 
+This separation mirrors how real C++ projects are structured — functionality is split into focused modules, headers declare the interface, and source files contain the implementation. It also means adding a new test in future requires no changes to `main.cpp` at all.
+ 
+### The runTest Helper
+ 
+Rather than repeating boilerplate for every scenario, a single `runTest` function handles the full lifecycle of each test — building the grid, placing obstacles, running the pathfinder, printing the grid and result, and comparing against the expected outcome:
+ 
 ```cpp
 bool runTest(const std::string& name,
              int rows, int cols,
@@ -299,19 +322,13 @@ bool runTest(const std::string& name,
              const std::vector<Position>& obstacles,
              bool expectPath)
 ```
-
-This handles all the standards — building the grid, running the pathfinder, printing results, and comparing against the expected outcome. Each scenario is a single self-documenting call. A summary prints at the end:
-
-```
-========================================
-  SUMMARY: 5 / 5 tests passed
-========================================
-```
-
-![Test output](images/week3_test_output.png)
-
+ 
+Each test case is a single self-documenting call. `runAllTests` in `TestPath.cpp` calls `runTest` once per scenario and returns the total number passed to `main`.
+ 
 ### Test Cases
-
+ 
+Eight test cases were implemented covering a range of normal and edge case scenarios:
+ 
 | # | Scenario | Expected |
 |---|---|---|
 | 1 | Basic vertical wall, path goes around | Path found |
@@ -319,69 +336,56 @@ This handles all the standards — building the grid, running the pathfinder, pr
 | 3 | Start equals goal | Path of length 1 |
 | 4 | Full vertical wall, grid cut in two | No path |
 | 5 | Open grid, no obstacles | Path found |
-
+| 6 | Obstacle placed directly on start | No path |
+| 7 | Obstacle placed directly on goal | No path |
+| 8 | Narrow corridor, single valid route | Path found |
+ 
+**Tests 1 and 5** cover the standard path-finding case — with and without obstacles — confirming the algorithm returns a valid path.
+ 
 **Test 2** confirms the algorithm returns an empty path rather than crashing or looping when the goal is completely surrounded.
-
-**Test 3** is the trivial edge case — start and goal are the same position. `reconstructPath` should return a vector containing just that single node.
-
-**Test 4** proves the no-path case works when it is geometrically impossible to reach the goal, not just blocked in one direction.
-
-![Test cases output](images/week3_test_cases.png)
-
-### Week 3 Outcome
-
-- Deep understanding of f, g, h developed with worked examples
-- Key algorithm blocks analysed line by line
-- `main.cpp` refactored into a reusable `runTest` helper
-- 5 structured test cases covering paths, blocked goals, trivial cases, and impossible scenarios
-- All 5 tests pass
-
----
-
-## Week 4 – Expanded Test Cases
-
-Week 4 focused entirely on expanding the test suite to cover more complex layouts and additional edge cases not addressed in Week 3.
-
-### New Test Cases
-
-| # | Scenario | Expected |
-|---|---|---|
-| 6 | Narrow corridor — only one valid route | Path found |
-| 7 | Obstacle placed directly on the start | No path |
-| 8 | Obstacle placed directly on the goal | No path |
-| 9 | 1×1 grid, start equals goal | Path of length 1 |
-| 10 | Large open grid, long path | Path found |
-
-**Tests 7 and 8** test what happens when the problem is broken from the outset. An obstacle on the start means the start node itself fails `isWalkable`, so `getNeighbours` produces nothing and the algorithm terminates with an empty path immediately. The same logic applies to the goal — if it is marked as an obstacle it can never be reached.
-
-**Test 6** creates a narrow corridor that forces the algorithm through one specific route. This makes the output easy to verify by visual inspection.
-
-**Test 9** extends the start-equals-goal case to a 1×1 grid — the smallest possible input — confirming no out-of-bounds issues occur at minimum size.
-
-![Week 4 test output](images/week4_test_output.png)
-
+ 
+![Test case 2](images/test2.png)
+ 
+**Test 3** handles the trivial edge case — start and goal are the same position. `reconstructPath` returns a vector containing just that single node.
+ 
+![Test case 3](images/test3.png)
+ 
+**Test 4** proves the no-path case works when it is geometrically impossible to reach the goal, not just locally blocked.
+ 
+![Test case 4](images/test4.png)
+ 
+**Tests 6 and 7** were the most revealing. Placing an obstacle on the start or goal exposed a real bug in the original implementation — `findPath` was pushing the start onto the open set unconditionally without ever checking if it was walkable. This meant an obstacle on the start had no effect. The fix was a two-line early return added to `findPath`:
+ 
+```cpp
+if (!grid.isWalkable(start) || !grid.isWalkable(goal))
+    return {};
+```
+ 
+This is a good example of testing catching a genuine correctness issue rather than just confirming known behaviour.
+ 
+**Test 8** creates a narrow corridor that forces the algorithm through a single gap in a wall, making the output easy to verify by visual inspection.
+ 
+![Test case 8](images/test8.png)
+ 
 ### Full Test Summary
-
-All 10 tests pass:
-
+ 
+All 8 tests pass:
+ 
 ```
 ========================================
-  SUMMARY: 10 / 10 tests passed
+  SUMMARY: 8 / 8 tests passed
 ========================================
 ```
-
+ 
 ![Full test summary](images/week4_summary.png)
-
+ 
 ### Week 4 Outcome
-
-- Test suite expanded to 10 cases
-- Obstacle-on-start, obstacle-on-goal, and minimum grid size confirmed working
-- Corridor scenario validates path finding in constrained layouts
-- All 10 tests pass
-
----
-
----
+ 
+- `main.cpp` reduced to a clean entry point
+- Test logic separated into `TestPath.h` and `TestPath.cpp`
+- 8 structured test cases covering standard paths, blocked goals, edge cases, and impossible scenarios
+- Tests 6 and 7 caught a real bug in `findPath` that was fixed as a result
+- All 8 tests pass
 
 ## Modern C++ Usage
 
