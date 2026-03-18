@@ -541,7 +541,7 @@ Throughout this project I used Claude (Anthropic) as a learning and development 
 
 **Code review** — After writing implementations, I discussed them with Claude to check for correctness. One issue identified was in `PositionHash`: on 32-bit systems where `size_t` is 32 bits, shifting by 32 is a no-op and causes more hash collisions. On the 64-bit systems this project targets it works correctly, but it is a portability limitation worth noting.
 
-**Report structure** — Claude helped identify that the report needed more analytical depth — explaining *why* decisions were made rather than just *what* was done — and helped structure content to meet the rubric requirements.
+**Report structure and Effective Writing** — Claude helped identify that the report needed more analytical depth — explaining *why* decisions were made rather than just *what* was done — and helped structure content to meet the requirements.
 
 ### What remained my own work
 
@@ -553,7 +553,7 @@ Throughout this project I used Claude (Anthropic) as a learning and development 
 
 ### Reflection on AI use
 
-Using AI as a learning tool rather than a solution generator made the process more effective. Asking "why does this work?" rather than "write this for me" built genuine understanding that I can demonstrate and defend. Every piece of code in this project is something I can explain line by line — which is the standard the rubric holds this work to.
+Using AI as a learning tool rather than a solution generator made the process more effective. Asking "why does this work?" rather than "write this for me" built genuine understanding that I can demonstrate and defend. Every piece of code in this project is something I can explain line by line.
 
 ---
 
@@ -561,16 +561,10 @@ Using AI as a learning tool rather than a solution generator made the process mo
 
 **Lecturer Material**
 - Lynch, M. (2025). *C++ Programming – A\* Algorithm Project Brief and Rubric*. ATU Galway.
-
 **AI Tools**
 - Anthropic. (2025). *Claude (claude.ai)*. Used for concept explanation, algorithm understanding, code review, and report structuring. https://claude.ai
 - OpenAI. (2025). *ChatGPT*. Used for project timeline planning and scheduling. https://chat.openai.com
-
 **Diagramming**
 - PlantUML. (2025). *PlantUML – Open-source UML diagram tool*. Used to generate the class diagram. https://plantuml.com
-
 **Reference Material**
 - cppreference.com. (2025). *C++ Standard Library reference*. Used for STL container documentation (`std::priority_queue`, `std::unordered_map`, `std::unordered_set`). https://en.cppreference.com
-### Reflection on AI use
-
-Using AI as a learning tool rather than a solution generator made the process more effective. Asking "why does this work?" rather than "write this for me" built genuine understanding that I can demonstrate and defend. Every piece of code in this project is something I can explain line by line — which is the standard the rubric holds this work to.
